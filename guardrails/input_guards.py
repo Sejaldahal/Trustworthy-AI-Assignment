@@ -9,6 +9,9 @@ PII_PATTERNS = {
     "SSN": re.compile(r"\b\d{3}-\d{2}-\d{4}\b"),
     "CREDIT_CARD": re.compile(r"\b(?:\d[ -]?){13,16}\b"),
     "PHONE": re.compile(r"(?<!\d)(?:\+?\d{1,3}[ -]?)?(?:\(\d{3}\)|\d{3})[ -]?\d{3}[ -]?\d{4}(?!\d)"),
+    # obfuscated forms: "jane dot doe at gmail dot com", "nine seven seven one two three four"
+    "EMAIL_OBF": re.compile(r"\b[\w+-]+(?:\s+dot\s+[\w-]+)*\s+(?:at|\(at\)|\[at\])\s+[\w-]+(?:\s+dot\s+[\w-]+)*\s+dot\s+(?:com|edu|org|net|np|io)\b", re.I),
+    "PHONE_WORDS": re.compile(r"\b(?:(?:zero|oh|one|two|three|four|five|six|seven|eight|nine)\b[ ,.-]*){7,}", re.I),
     "NATIONAL_ID": re.compile(r"\b(?:NID|ID|passport)[ #:]*[A-Z0-9]{7,12}\b", re.I),
 }
 
@@ -46,7 +49,9 @@ def redact_pii(text: str):
 # (regex, weight). Score >= THRESHOLD => flagged.
 INJECTION_RULES = [
     (r"\b(ignore|disregard|forget|override)\b.{0,30}\b(previous|prior|above|earlier|all|your)\b.{0,20}\b(instructions?|rules?|prompts?|guidelines?)", 1.0),
-    (r"\b(reveal|show|print|repeat|output|leak)\b.{0,30}\b(system prompt|hidden prompt|initial instructions|your instructions|api key|secret|password)", 1.0),
+    (r"\b(reveal|show|print|repeat|output|leak)\b.{0,30}\b(system prompt|hidden prompt|initial instructions|your instructions|(your|the|admin|system) (api key|secret|password))", 1.0),
+    # multilingual variants of "ignore previous instructions" (fr / es / de)
+    (r"\bignor(ez|e|ar|a)\b.{0,20}\b(instructions?|instrucciones)\b|\bignoriere\b.{0,25}\banweisungen\b", 1.0),
     (r"\byou are now\b|\bpretend (to be|you are)\b|\bact as (an? )?(unrestricted|unfiltered|dan)\b", 0.7),
     (r"\b(jailbreak|DAN mode|developer mode|no restrictions|without (any )?(restrictions|filters|rules))\b", 0.8),
     (r"\bdo anything now\b", 0.8),

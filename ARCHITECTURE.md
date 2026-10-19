@@ -1,5 +1,9 @@
 # Architecture
 
+![Architecture diagram](architecture.png)
+
+(Regenerate with `python3 make_diagram.py`.) Mermaid version of the same flow:
+
 ```mermaid
 flowchart TD
     U[User message] --> I1{Injection detector}

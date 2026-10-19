@@ -45,6 +45,38 @@ def _numbers(text):
     return set(re.findall(r"\d[\d,]*(?:\.\d+)?", text))
 
 
+_NEG = {"not", "no", "non", "never", "cannot", "without"}
+
+
+def _stem(w):
+    return w[:-1] if w.endswith("s") and len(w) > 3 else w
+
+
+def _negated(text):
+    """Content words directly governed by a negator ("non-refundable", "not accepted")."""
+    words = re.findall(r"[a-z0-9$]+", text.lower().replace("n't", ""))
+    out = set()
+    for i, w in enumerate(words):
+        if w in _NEG:
+            for nxt in words[i + 1:i + 4]:
+                if nxt not in STOP and nxt not in _NEG:
+                    out.add(_stem(nxt))
+                    break
+    return out
+
+
+def _contradicts(claim, references):
+    """True if a reference sentence shares words with the claim but negates one of them in only one side."""
+    cn, ct = _negated(claim), {_stem(w) for w in re.findall(r"[a-z0-9$]+", claim.lower())}
+    for ref in references:
+        for rs in re.split(r"(?<=[.!?])\s+", ref):
+            rn = _negated(rs)
+            rt = {_stem(w) for w in re.findall(r"[a-z0-9$]+", rs.lower())}
+            if len((ct & rt) - STOP) >= 2 and (((rn & ct) - cn) or ((cn & rt) - rn)):
+                return True
+    return False
+
+
 def check_groundedness(answer: str, references: list, min_support=0.7):
     """Split into claim sentences; each must be supported by the references.
     Returns (ok, unsupported_sentences, per-claim scores)."""
@@ -58,7 +90,7 @@ def check_groundedness(answer: str, references: list, min_support=0.7):
         support = len(tok & ref_tok) / len(tok)
         nums_ok = {n.replace(",", "") for n in _numbers(sent)} <= ref_num
         scores.append(round(support, 2))
-        if support < min_support or not nums_ok:
+        if support < min_support or not nums_ok or _contradicts(sent, references):
             bad.append(sent)
     return not bad, bad, scores
 
